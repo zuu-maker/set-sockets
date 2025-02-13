@@ -9,14 +9,9 @@ const ioSocket = (io: any) => {
   let rooms = new Map<string, Room>();
 
   io.on("connection", (socket: Socket) => {
-    console.log("connected", socket.id);
-
     let participants: Participant[] = [];
     // joins a room
     socket.on("join_room", async (roomId: string, participant: Participant) => {
-      console.log("participant data", participant);
-      console.log("room id", roomId);
-
       let room = rooms.get(roomId);
       if (!room) {
         room = {
@@ -29,6 +24,16 @@ const ioSocket = (io: any) => {
           raisedHands: new Set(),
         };
         rooms.set(roomId, room);
+      } else {
+        if (room.bannedUsers.has(participant.id)) {
+          socket.emit("error", "joining");
+          return;
+        }
+
+        socket.emit("history", {
+          allowedSpeakers: Array.from(room.allowedSpeakers),
+          notAllowedTexters: Array.from(room.notAllowedTexters),
+        });
       }
 
       const exists = room.participants.some(
@@ -36,11 +41,9 @@ const ioSocket = (io: any) => {
       );
 
       socket.join(roomId);
-      console.log(exists);
       if (!exists) {
         room.participants.push(participant);
       }
-      console.log("room", room);
       // console.log(room.participants);
 
       io.to(roomId).emit("updated_participants", room.participants);
@@ -104,6 +107,7 @@ const ioSocket = (io: any) => {
       if (!room) return;
 
       room.bannedUsers.add(userId);
+      console.log("after add", room.bannedUsers);
       io.to(roomId).emit("remove_banned_user", userId);
     });
   });
