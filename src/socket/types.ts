@@ -1,5 +1,6 @@
 export interface Participant {
   id: string;
+  socketId: string;
   namee: string;
   isVideoOff: boolean;
   isMuted: boolean;
