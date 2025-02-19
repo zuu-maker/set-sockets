@@ -29,4 +29,15 @@ export interface Room {
   notAllowedTexters: Set<string>;
   allowedSpeakers: Set<string>;
   bannedUsers: Set<string>;
+  teacherMuteStates: TeacherMuteState;
+}
+
+export interface TeacherMuteState {
+  audio: boolean;
+  video: boolean;
+}
+
+export interface MuteState {
+  kind: string;
+  muted: boolean;
 }

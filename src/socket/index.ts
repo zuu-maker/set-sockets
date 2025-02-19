@@ -1,5 +1,5 @@
 import { Socket } from "socket.io";
-import type { Chat, Participant, Raisehand, Room } from "./types.js";
+import type { Chat, MuteState, Participant, Raisehand, Room } from "./types.js";
 
 // add a current room and add defensive programming
 
@@ -10,6 +10,7 @@ const ioSocket = (io: any) => {
   let rooms = new Map<string, Room>();
 
   io.on("connection", (socket: Socket) => {
+    console.log("connectd", socket.id);
     let participants: Participant[] = [];
     let currentRoomId: string = "";
     // joins a room
@@ -25,6 +26,7 @@ const ioSocket = (io: any) => {
           allowedSpeakers: new Set(),
           bannedUsers: new Set(),
           raisedHands: new Set(),
+          teacherMuteStates: { audio: false, video: false },
         };
         rooms.set(roomId, room);
       } else {
@@ -36,6 +38,8 @@ const ioSocket = (io: any) => {
         socket.emit("history", {
           allowedSpeakers: Array.from(room.allowedSpeakers),
           notAllowedTexters: Array.from(room.notAllowedTexters),
+          _isAudioMuted: room.teacherMuteStates.audio,
+          _isVideoMuted: room.teacherMuteStates.video,
         });
       }
 
@@ -188,6 +192,25 @@ const ioSocket = (io: any) => {
           }
         }
       }
+    });
+
+    socket.on("mute_state", (roomId: string, muteState: MuteState) => {
+      let room = rooms.get(roomId);
+
+      if (!room) {
+        socket.emit("error", "room");
+        return;
+      }
+
+      if (muteState.kind === "audio") {
+        room.teacherMuteStates.audio = muteState.muted;
+      }
+
+      if (muteState.kind === "video") {
+        room.teacherMuteStates.video = muteState.muted;
+      }
+
+      socket.to(roomId).emit("updated_mute_state", muteState);
     });
   });
 };
