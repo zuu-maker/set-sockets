@@ -7,6 +7,13 @@ export interface Participant {
   isActive: boolean;
 }
 
+// you already have is muted and is video off
+export interface StudentMuteState {
+  id: string;
+  kind: string;
+  muted: boolean;
+}
+
 export interface Chat {
   content: string;
   sender: string;

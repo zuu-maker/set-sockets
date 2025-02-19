@@ -1,5 +1,13 @@
 import { Socket } from "socket.io";
-import type { Chat, MuteState, Participant, Raisehand, Room } from "./types.js";
+import type {
+  Chat,
+  MuteState,
+  Participant,
+  Raisehand,
+  Room,
+  StudentMuteState,
+} from "./types.js";
+import { use } from "hono/jsx";
 
 // add a current room and add defensive programming
 
@@ -211,6 +219,69 @@ const ioSocket = (io: any) => {
       }
 
       socket.to(roomId).emit("updated_mute_state", muteState);
+    });
+
+    socket.on(
+      "student_mute_state",
+      (roomId: string, studentMuteState: StudentMuteState) => {
+        let room = rooms.get(roomId);
+
+        if (!room) {
+          socket.emit("error", "room");
+          return;
+        }
+
+        room.participants.forEach((p) => {
+          if (p.id === studentMuteState.id) {
+            if (studentMuteState.kind === "audio") {
+              p.isMuted = studentMuteState.muted;
+            }
+          }
+        });
+
+        io.to(roomId).emit("updated_participants", room.participants);
+      }
+    );
+
+    socket.on("mute_student", (roomId: string, userId: string) => {
+      let room = rooms.get(roomId);
+
+      if (!room) {
+        socket.emit("error", "room");
+        return;
+      }
+
+      console.log("student id", userId);
+
+      if (userId.length > 0) {
+        console.log("being muted");
+        room.participants.forEach((p) => {
+          if (p.id === userId) {
+            console.log("mutatingg being done");
+            p.isMuted = true;
+            room.allowedSpeakers.delete(userId);
+            io.to(roomId).emit("muted_student", {
+              participants: room.participants,
+              allowedSpeakers: Array.from(room.allowedSpeakers),
+              id: userId,
+            });
+          }
+        });
+
+        // remove from allowed speakers
+      } else {
+        room.participants.forEach((p) => {
+          if (!p.isMuted) {
+            p.isMuted = true;
+            room.allowedSpeakers.delete(userId);
+          }
+        });
+        io.to(roomId).emit("muted_all", {
+          participants: room.participants,
+          allowedSpeakers: Array.from(room.allowedSpeakers),
+        });
+        // if you have a localstream then we mute it
+      }
     });
   });
 };
